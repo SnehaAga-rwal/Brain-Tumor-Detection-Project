@@ -1,0 +1,52 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and runtime
+logs/
+*.log
+instance/*.db
+*.sqlite
+*.sqlite3
+
+# Data artifacts (very large)
+data/processed/
+data/raw/
+visualization_outputs/
+
+# Model binaries / checkpoints
+*.h5
+*.keras
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.pkl
+app/models/saved/*.h5
+app/models/saved/*.keras
+saved_models/
+models_training/*.h5
+models_training/*.keras
+
+# Uploads/reports generated at runtime
+app/static/uploads/
+app/static/reports/
+
+# Jupyter
+.ipynb_checkpoints/

@@ -1,0 +1,93 @@
+<!-- ============================================
+     FILE: app/templates/doctor/patients.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}My Patients{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-users me-2"></i>My Patients</h2>
+        <p class="text-muted">Patients under your care</p>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if patients_data and patients_data|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Patient Name</th>
+                            <th>Patient ID</th>
+                            <th>Total Scans</th>
+                            <th>Latest Diagnosis</th>
+                            <th>Latest Treatment</th>
+                            <th>Last Scan Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in patients_data %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.patient.user.username }}</strong>
+                                </td>
+                                <td>P{{ item.patient.id }}</td>
+                                <td>{{ item.scan_count }}</td>
+                                <td>
+                                    {% if item.latest_diagnosis %}
+                                        <span class="badge
+                                            {% if item.latest_diagnosis.ai_prediction == 'glioma' %}bg-danger
+                                            {% elif item.latest_diagnosis.ai_prediction == 'meningioma' %}bg-warning
+                                            {% elif item.latest_diagnosis.ai_prediction == 'pituitary' %}bg-info
+                                            {% else %}bg-success{% endif %}">
+                                            {{ item.latest_diagnosis.ai_prediction|capitalize }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">No diagnosis</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.latest_treatment %}
+                                        {% if item.latest_treatment.severity_level == 'critical' %}
+                                            <span class="badge bg-danger">Critical</span>
+                                        {% elif item.latest_treatment.severity_level == 'urgent_surgery_needed' %}
+                                            <span class="badge bg-warning">Urgent</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Normal</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.latest_diagnosis %}
+                                        {{ item.latest_diagnosis.created_at.strftime('%Y-%m-%d') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('doctor.patient_history', patient_id=item.patient.id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-history"></i> History
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                <h5>No Patients Assigned</h5>
+                <p class="text-muted">You don't have any patients assigned to you yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

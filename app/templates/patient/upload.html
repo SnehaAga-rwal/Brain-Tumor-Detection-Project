@@ -1,0 +1,328 @@
+<!-- ============================================
+     FILE: app/templates/patient/upload.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Upload MRI Scan{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-area {
+        border: 2px dashed #007bff;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .upload-area:hover {
+        background-color: #e9ecef;
+        border-color: #0056b3;
+    }
+
+    .upload-area.dragover {
+        background-color: #cce5ff;
+        border-color: #004085;
+    }
+
+    .preview-image {
+        max-width: 100%;
+        max-height: 300px;
+        margin-top: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .progress {
+        height: 30px;
+        margin-top: 20px;
+    }
+
+    .file-info {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-upload me-2"></i>Upload MRI Scan</h4>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <!-- Upload Area -->
+                    <div id="uploadArea" class="upload-area">
+                        <i class="fas fa-cloud-upload-alt fa-4x text-primary mb-3"></i>
+                        <h5>Drag & Drop your MRI scan here</h5>
+                        <p class="text-muted mb-3">or click to browse</p>
+                        <input type="file" id="fileInput" name="mri_file" accept=".jpg,.jpeg,.png,.dcm" hidden>
+                        <button type="button" id="browseBtn" class="btn btn-outline-primary">
+                            <i class="fas fa-folder-open me-2"></i>Browse Files
+                        </button>
+                        <p class="text-muted small mt-3">
+                            Supported formats: JPG, PNG, DICOM (Max size: 50MB)
+                        </p>
+                    </div>
+
+                    <!-- File Preview -->
+                    <div id="filePreview" style="display: none;">
+                        <div class="text-center">
+                            <img id="previewImage" class="preview-image" src="#" alt="Preview">
+                        </div>
+                        <div class="file-info">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Filename:</strong> <span id="fileName"></span></p>
+                                    <p><strong>File size:</strong> <span id="fileSize"></span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>File type:</strong> <span id="fileType"></span></p>
+                                    <p><strong>Dimensions:</strong> <span id="fileDimensions"></span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div id="progressContainer" style="display: none;">
+                            <div class="progress">
+                                <div id="uploadProgress" class="progress-bar progress-bar-striped progress-bar-animated"
+                                     role="progressbar" style="width: 0%">0%</div>
+                            </div>
+                            <p id="progressMessage" class="text-center mt-2">Uploading...</p>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-center gap-3 mt-3">
+                            <button type="button" id="changeFileBtn" class="btn btn-outline-secondary">
+                                <i class="fas fa-undo me-2"></i>Choose Another
+                            </button>
+                            <button type="submit" id="uploadBtn" class="btn btn-success">
+                                <i class="fas fa-cloud-upload-alt me-2"></i>Upload & Analyze
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Instructions Card -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Upload Instructions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Accepted File Types:</h6>
+                        <ul>
+                            <li>JPEG/JPG images (.jpg, .jpeg)</li>
+                            <li>PNG images (.png)</li>
+                            <li>DICOM medical images (.dcm)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Recommendations:</h6>
+                        <ul>
+                            <li>Ensure image is clear and properly focused</li>
+                            <li>Brain MRI should be centered in the image</li>
+                            <li>Maximum file size: 50MB</li>
+                            <li>Wait for AI analysis (usually 30-60 seconds)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    Your scans are encrypted and securely stored. Only you and your assigned doctor can access them.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Result Modal -->
+<div class="modal fade" id="resultModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Upload Successful</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                <h4>Your MRI scan has been uploaded successfully!</h4>
+                <p>The AI system is now analyzing your scan. You will receive an email when the analysis is complete.</p>
+                <div class="mt-3">
+                    <p><strong>Scan ID:</strong> <span id="modalScanId"></span></p>
+                    <p><strong>Upload Time:</strong> <span id="modalUploadTime"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="#" id="modalViewScan" class="btn btn-primary">
+                    <i class="fas fa-eye me-2"></i>View Scan Status
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-home me-2"></i>Back to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    const uploadArea = $('#uploadArea');
+    const fileInput = $('#fileInput');
+    const browseBtn = $('#browseBtn');
+    const filePreview = $('#filePreview');
+    const changeFileBtn = $('#changeFileBtn');
+    const progressContainer = $('#progressContainer');
+    const uploadProgress = $('#uploadProgress');
+    const progressMessage = $('#progressMessage');
+
+    // Browse button click
+    browseBtn.on('click', function() {
+        fileInput.click();
+    });
+
+    // File selection via browse
+    fileInput.on('change', function(e) {
+        handleFileSelect(e.target.files[0]);
+    });
+
+    // Drag and drop handlers
+    uploadArea.on('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.addClass('dragover');
+    });
+
+    uploadArea.on('dragleave', function() {
+        uploadArea.removeClass('dragover');
+    });
+
+    uploadArea.on('drop', function(e) {
+        e.preventDefault();
+        uploadArea.removeClass('dragover');
+        const file = e.originalEvent.dataTransfer.files[0];
+        handleFileSelect(file);
+    });
+
+    // Change file button
+    changeFileBtn.on('click', function() {
+        filePreview.hide();
+        uploadArea.show();
+        fileInput.val('');
+    });
+
+    // Handle file selection
+    function handleFileSelect(file) {
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'application/dicom'];
+        if (!validTypes.includes(file.type) && !file.name.endsWith('.dcm')) {
+            alert('Please select a valid image file (JPG, PNG, or DICOM)');
+            return;
+        }
+
+        // Validate file size (50MB)
+        if (file.size > 50 * 1024 * 1024) {
+            alert('File size exceeds 50MB limit');
+            return;
+        }
+
+        // Update file info
+        $('#fileName').text(file.name);
+        $('#fileSize').text((file.size / (1024 * 1024)).toFixed(2) + ' MB');
+        $('#fileType').text(file.type || 'DICOM');
+
+        // Show preview for images
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#previewImage').attr('src', e.target.result);
+
+                // Get image dimensions
+                const img = new Image();
+                img.onload = function() {
+                    $('#fileDimensions').text(this.width + ' x ' + this.height + ' px');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // DICOM file
+            $('#previewImage').attr('src', 'https://via.placeholder.com/300x200?text=DICOM+File');
+            $('#fileDimensions').text('DICOM format');
+        }
+
+        uploadArea.hide();
+        filePreview.show();
+    }
+
+    // Form submission
+    $('#uploadForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData();
+        formData.append('mri_file', fileInput[0].files[0]);
+
+        // Show progress
+        progressContainer.show();
+        uploadProgress.css('width', '0%').text('0%');
+        progressMessage.text('Uploading...');
+
+        $.ajax({
+            url: '{{ url_for("patient.upload_scan") }}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        uploadProgress.css('width', percent + '%').text(percent + '%');
+
+                        if (percent === 100) {
+                            progressMessage.text('Processing...');
+                        }
+                    }
+                }, false);
+                return xhr;
+            },
+            success: function(response) {
+                progressMessage.text('Upload complete!');
+                setTimeout(() => {
+                    // Show success modal
+                    $('#modalScanId').text(response.scan_id || 'N/A');
+                    $('#modalUploadTime').text(new Date().toLocaleString());
+                    $('#modalViewScan').attr('href', '/patient/scan/' + response.scan_id);
+                    $('#resultModal').modal('show');
+
+                    // Reset form after modal closed
+                    $('#resultModal').on('hidden.bs.modal', function() {
+                        window.location.href = '/patient/dashboard';
+                    });
+                }, 500);
+            },
+            error: function(xhr) {
+                progressContainer.hide();
+                alert('Upload failed: ' + (xhr.responseJSON?.error || 'Unknown error'));
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+

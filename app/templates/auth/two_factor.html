@@ -1,0 +1,50 @@
+<!-- ============================================
+     FILE: app/templates/auth/two_factor.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Two-Factor Authentication{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-lg mt-5">
+            <div class="card-header bg-primary text-white text-center py-4">
+                <h3 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Two-Factor Authentication</h3>
+                <p class="mb-0 mt-2">Enter verification code</p>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <input type="hidden" name="email" value="{{ email }}">
+                    <input type="hidden" name="password" value="{{ request.form.get('password', '') }}">
+                    <input type="hidden" name="remember" value="{{ request.form.get('remember', '') }}">
+
+                    <div class="text-center mb-4">
+                        <i class="fas fa-mobile-alt fa-4x text-primary mb-3"></i>
+                        <p>Please enter the 6-digit code from your authenticator app.</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="totp_code" class="form-label fw-bold">Verification Code</label>
+                        <input type="text" class="form-control form-control-lg text-center"
+                               id="totp_code" name="totp_code"
+                               placeholder="000000" maxlength="6" required autofocus>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check-circle me-2"></i>Verify
+                        </button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('auth.login') }}" class="text-decoration-none">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Login
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

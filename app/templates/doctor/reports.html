@@ -1,0 +1,77 @@
+<!-- ============================================
+     FILE: app/templates/doctor/reports.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Generated Reports{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-file-pdf me-2"></i>Generated Reports</h2>
+        <p class="text-muted">All reports you have generated</p>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if reports_data and reports_data|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Report ID</th>
+                            <th>Patient</th>
+                            <th>Scan ID</th>
+                            <th>Diagnosis</th>
+                            <th>Generated Date</th>
+                            <th>Downloads</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in reports_data %}
+                            <tr>
+                                <td>#{{ item.report.id }}</td>
+                                <td>
+                                    <strong>{{ item.patient.user.username }}</strong>
+                                    <br>
+                                    <small class="text-muted">P{{ item.patient.id }}</small>
+                                </td>
+                                <td>#{{ item.diagnosis.scan.id }}</td>
+                                <td>
+                                    <span class="badge
+                                        {% if item.diagnosis.ai_prediction == 'glioma' %}bg-danger
+                                        {% elif item.diagnosis.ai_prediction == 'meningioma' %}bg-warning
+                                        {% elif item.diagnosis.ai_prediction == 'pituitary' %}bg-info
+                                        {% else %}bg-success{% endif %}">
+                                        {{ item.diagnosis.ai_prediction|capitalize }}
+                                    </span>
+                                </td>
+                                <td>{{ item.report.generated_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ item.report.access_count }}</td>
+                                <td>
+                                    <a href="{{ url_for('patient.download_report', diagnosis_id=item.diagnosis.id) }}"
+                                       class="btn btn-sm btn-outline-success" target="_blank">
+                                        <i class="fas fa-download"></i> PDF
+                                    </a>
+                                    <a href="{{ url_for('doctor.review_scan', scan_id=item.diagnosis.scan.id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-file-pdf fa-4x text-muted mb-3"></i>
+                <h5>No Reports Generated</h5>
+                <p class="text-muted">You haven't generated any reports yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

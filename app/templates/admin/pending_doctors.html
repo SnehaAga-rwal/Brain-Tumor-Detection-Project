@@ -1,0 +1,82 @@
+<!-- ============================================
+     FILE: app/templates/admin/pending_doctors.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Pending Doctor Verifications{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-user-md me-2"></i>Pending Doctor Verifications</h2>
+        <p class="text-muted">Review and verify doctor applications</p>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if pending_doctors and pending_doctors|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Doctor Name</th>
+                            <th>Email</th>
+                            <th>Specialization</th>
+                            <th>License Number</th>
+                            <th>Hospital</th>
+                            <th>Registered On</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doctor in pending_doctors %}
+                            <tr>
+                                <td>
+                                    <strong>{{ doctor.user.username }}</strong>
+                                </td>
+                                <td>{{ doctor.user.email }}</td>
+                                <td>{{ doctor.specialization }}</td>
+                                <td>{{ doctor.license_number }}</td>
+                                <td>{{ doctor.hospital_affiliation or 'Not specified' }}</td>
+                                <td>{{ doctor.user.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-success me-2" onclick="verifyDoctor({{ doctor.id }}, 'approve')">
+                                        <i class="fas fa-check"></i> Approve
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="verifyDoctor({{ doctor.id }}, 'reject')">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                <h5>No Pending Verifications</h5>
+                <p class="text-muted">All doctor applications have been processed.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function verifyDoctor(doctorId, action) {
+    if (confirm(`Are you sure you want to ${action} this doctor?`)) {
+        fetch(`/admin/doctor/${doctorId}/verify`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: action})
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            location.reload();
+        });
+    }
+}
+</script>
+{% endblock %}

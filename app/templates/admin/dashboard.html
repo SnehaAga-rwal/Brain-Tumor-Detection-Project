@@ -1,0 +1,256 @@
+<!-- ============================================
+     FILE: app/templates/admin/dashboard.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-cog me-2"></i>Admin Dashboard</h2>
+        <p class="text-muted">System Overview and Management</p>
+    </div>
+</div>
+
+<!-- System Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Total Users</h6>
+                        <h2 class="mb-0">{{ total_users }}</h2>
+                    </div>
+                    <i class="fas fa-users fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2 small">
+                    <span class="me-2"><i class="fas fa-circle text-info"></i> {{ total_patients }} Patients</span>
+                    <span><i class="fas fa-circle text-success"></i> {{ total_doctors }} Doctors</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Pending Doctors</h6>
+                        <h2 class="mb-0">{{ pending_doctors }}</h2>
+                    </div>
+                    <i class="fas fa-user-md fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2">
+                    <a href="{{ url_for('admin.pending_doctors') }}" class="text-white">Review Now →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Total Scans</h6>
+                        <h2 class="mb-0">{{ total_scans }}</h2>
+                    </div>
+                    <i class="fas fa-mri fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2 small">
+                    {{ scans_today }} scans today
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">System Health</h6>
+                        <h2 class="mb-0">
+                            {% if system_health.cpu_percent < 70 and system_health.memory_percent < 70 %}
+                                <i class="fas fa-check-circle"></i>
+                            {% else %}
+                                <i class="fas fa-exclamation-triangle"></i>
+                            {% endif %}
+                        </h2>
+                    </div>
+                    <i class="fas fa-heartbeat fa-3x opacity-50"></i>
+                </div>
+                <div class="mt-2 small">
+                    CPU: {{ system_health.cpu_percent }}% | RAM: {{ system_health.memory_percent }}%
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Health Cards -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>System Performance</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="systemChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-database me-2"></i>Storage Usage</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="storageChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-users me-2"></i>Manage Users
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.pending_doctors') }}" class="btn btn-outline-warning w-100 mb-2">
+                            <i class="fas fa-user-md me-2"></i>Verify Doctors
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-outline-info w-100 mb-2">
+                            <i class="fas fa-history me-2"></i>Audit Logs
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <button onclick="backupSystem()" class="btn btn-outline-success w-100 mb-2">
+                            <i class="fas fa-database me-2"></i>Backup Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+                <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>IP Address</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_logs %}
+                            <tr>
+                                <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>
+                                    {% if log.user %}
+                                        {{ log.user.username }}
+                                    {% else %}
+                                        <em>System</em>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-info">{{ log.action }}</span></td>
+                                <td>{{ log.ip_address or 'N/A' }}</td>
+                                <td>{{ log.details or '' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// System Performance Chart
+const ctx1 = document.getElementById('systemChart').getContext('2d');
+new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: ['12am', '2am', '4am', '6am', '8am', '10am', '12pm', '2pm', '4pm', '6pm', '8pm', '10pm'],
+        datasets: [{
+            label: 'CPU Usage %',
+            data: [12, 15, 10, 8, 25, 45, 60, 55, 48, 52, 35, 20],
+            borderColor: 'rgb(255, 99, 132)',
+            tension: 0.1
+        }, {
+            label: 'Memory Usage %',
+            data: [30, 32, 28, 25, 35, 48, 55, 58, 52, 50, 45, 38],
+            borderColor: 'rgb(54, 162, 235)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+// Storage Chart
+const ctx2 = document.getElementById('storageChart').getContext('2d');
+new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: ['Used', 'Free'],
+        datasets: [{
+            data: [{{ system_health.disk_percent }}, 100 - {{ system_health.disk_percent }}],
+            backgroundColor: ['#ff6384', '#36a2eb']
+        }]
+    }
+});
+
+// Backup function
+function backupSystem() {
+    if (confirm('Start system backup? This may take a few minutes.')) {
+        fetch('/admin/backup', {method: 'POST'})
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+            });
+    }
+}
+
+// Auto-refresh system stats
+setInterval(() => {
+    fetch('/admin/system/monitor')
+        .then(response => response.json())
+        .then(data => {
+            // Update CPU/Memory display
+            document.querySelector('.bg-info .h2 i').className =
+                data.cpu.percent < 70 ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+        });
+}, 30000); // Refresh every 30 seconds
+</script>
+{% endblock %}
+
+

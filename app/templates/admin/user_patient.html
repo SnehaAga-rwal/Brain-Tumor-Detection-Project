@@ -1,0 +1,189 @@
+<!-- ============================================
+     FILE: app/templates/admin/user_patient.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Patient Details - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-user me-2"></i>Patient Details</h2>
+        <p class="text-muted">{{ user.username }} (P{{ profile.id if profile else '' }})</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('admin.users') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Users
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-user-circle me-2"></i>User Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Username:</th>
+                        <td>{{ user.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ user.email }}</td>
+                    </tr>
+                    <tr>
+                        <th>Role:</th>
+                        <td><span class="badge bg-info">Patient</span></td>
+                    </tr>
+                    <tr>
+                        <th>Email Verified:</th>
+                        <td>
+                            {% if user.email_verified %}
+                                <span class="badge bg-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-warning">No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>2FA Enabled:</th>
+                        <td>
+                            {% if user.two_factor_enabled %}
+                                <span class="badge bg-success">Yes</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Account Status:</th>
+                        <td>
+                            {% if user.account_locked_until and user.account_locked_until > now() %}
+                                <span class="badge bg-danger">Locked</span>
+                            {% else %}
+                                <span class="badge bg-success">Active</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Last Login:</th>
+                        <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Registered:</th>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-notes-medical me-2"></i>Patient Information</h5>
+            </div>
+            <div class="card-body">
+                {% if profile %}
+                    <table class="table table-borderless">
+                        <tr>
+                            <th>Phone:</th>
+                            <td>{{ profile.phone or 'Not provided' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Date of Birth:</th>
+                            <td>{{ profile.date_of_birth or 'Not provided' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Address:</th>
+                            <td>{{ profile.address or 'Not provided' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Blood Group:</th>
+                            <td>{{ profile.blood_group or 'Not provided' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Emergency Contact:</th>
+                            <td>{{ profile.emergency_contact or 'Not provided' }}</td>
+                        </tr>
+                    </table>
+                {% else %}
+                    <p class="text-muted">No patient profile found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scan History -->
+<div class="card shadow">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-mri me-2"></i>Scan History</h5>
+    </div>
+    <div class="card-body">
+        {% if scans and scans|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Scan ID</th>
+                            <th>Date</th>
+                            <th>Filename</th>
+                            <th>Status</th>
+                            <th>AI Result</th>
+                            <th>Doctor Verified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for scan in scans %}
+                            <tr>
+                                <td>#{{ scan.id }}</td>
+                                <td>{{ scan.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ scan.filename }}</td>
+                                <td>
+                                    {% if scan.status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% elif scan.status == 'processing' %}
+                                        <span class="badge bg-warning">Processing</span>
+                                    {% elif scan.status == 'failed' %}
+                                        <span class="badge bg-danger">Failed</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if scan.diagnosis %}
+                                        <span class="badge
+                                            {% if scan.diagnosis.ai_prediction == 'glioma' %}bg-danger
+                                            {% elif scan.diagnosis.ai_prediction == 'meningioma' %}bg-warning
+                                            {% elif scan.diagnosis.ai_prediction == 'pituitary' %}bg-info
+                                            {% else %}bg-success{% endif %}">
+                                            {{ scan.diagnosis.ai_prediction|capitalize }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if scan.diagnosis and scan.diagnosis.doctor_verified %}
+                                        <span class="badge bg-success">Yes</span>
+                                    {% elif scan.diagnosis %}
+                                        <span class="badge bg-warning">Pending</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">No scans found for this patient.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

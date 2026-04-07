@@ -1,0 +1,163 @@
+<!-- ============================================
+     FILE: app/templates/patient/treatment.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Treatment Plan{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-notes-medical me-2"></i>Treatment Plan</h2>
+        <p class="text-muted">Doctor's treatment recommendations</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('patient.scan_status', scan_id=diagnosis.scan.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Scan
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Severity Banner -->
+        <div class="card mb-4 border-0 shadow">
+            <div class="card-body text-center p-4
+                {% if treatment.severity_level == 'critical' %}bg-danger text-white
+                {% elif treatment.severity_level == 'urgent_surgery_needed' %}bg-warning
+                {% else %}bg-success text-white{% endif %}">
+                <h3 class="mb-0">
+                    {% if treatment.severity_level == 'critical' %}
+                        <i class="fas fa-exclamation-triangle fa-2x me-3"></i>CRITICAL - IMMEDIATE ATTENTION REQUIRED
+                    {% elif treatment.severity_level == 'urgent_surgery_needed' %}
+                        <i class="fas fa-ambulance fa-2x me-3"></i>URGENT SURGERY NEEDED
+                    {% else %}
+                        <i class="fas fa-check-circle fa-2x me-3"></i>NORMAL - MONITORING REQUIRED
+                    {% endif %}
+                </h3>
+            </div>
+        </div>
+
+        <!-- Doctor Information -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-user-md me-2"></i>Doctor Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Doctor:</strong> Dr. {{ treatment.doctor.user.username }}</p>
+                        <p><strong>Specialization:</strong> {{ treatment.doctor.specialization }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>License:</strong> {{ treatment.doctor.license_number }}</p>
+                        <p><strong>Verified on:</strong> {{ diagnosis.verification_date.strftime('%B %d, %Y') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prescription -->
+        {% if treatment.prescription %}
+        <div class="card shadow mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-pills me-2"></i>Prescription</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">{{ treatment.prescription }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recommended Therapies -->
+        {% if treatment.recommended_therapies_list %}
+        <div class="card shadow mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>Recommended Therapies</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for therapy in treatment.recommended_therapies_list %}
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success me-3"></i>{{ therapy }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Lifestyle Modifications -->
+        {% if treatment.lifestyle_modifications_list %}
+        <div class="card shadow mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-running me-2"></i>Lifestyle Modifications</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for mod in treatment.lifestyle_modifications_list %}
+                        <li class="list-group-item">
+                            <i class="fas fa-check-circle text-success me-3"></i>{{ mod }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Follow-up and Referrals -->
+        <div class="row">
+            {% if treatment.follow_up_date %}
+            <div class="col-md-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Follow-up</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-check fa-3x text-info mb-3"></i>
+                        <h5>{{ treatment.follow_up_date.strftime('%B %d, %Y') }}</h5>
+                        <p class="text-muted">{{ treatment.follow_up_date.strftime('%I:%M %p') }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if treatment.referred_specialist %}
+            <div class="col-md-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-user-md me-2"></i>Referred Specialist</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-stethoscope fa-3x text-secondary mb-3"></i>
+                        <h5>{{ treatment.referred_specialist }}</h5>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Additional Notes -->
+        {% if treatment.additional_notes %}
+        <div class="card shadow mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Additional Notes</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ treatment.additional_notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{{ url_for('patient.scan_status', scan_id=diagnosis.scan.id) }}" class="btn btn-outline-secondary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>Back
+            </a>
+            <a href="{{ url_for('patient.download_report', diagnosis_id=diagnosis.id) }}" class="btn btn-success btn-lg">
+                <i class="fas fa-file-pdf me-2"></i>Download Full Report
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,122 @@
+<!-- ============================================
+     FILE: app/templates/admin/iot_devices.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}IoT Device Management{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-microchip me-2"></i>IoT Device Management</h2>
+        <p class="text-muted">Monitor and control simulated MRI devices</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-success" onclick="refreshDevices()">
+            <i class="fas fa-sync-alt me-2"></i>Refresh
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if devices and devices|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="deviceTable">
+                    <thead>
+                        <tr>
+                            <th>Device ID</th>
+                            <th>Name</th>
+                            <th>Hospital</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Last Seen</th>
+                            <th>Firmware</th>
+                            <th>Total Scans</th>
+                            <th>Edge Computing</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for device in devices %}
+                            <tr>
+                                <td><strong>{{ device.id }}</strong></td>
+                                <td>{{ device.name }}</td>
+                                <td>{{ device.hospital }}</td>
+                                <td>{{ device.location }}</td>
+                                <td>
+                                    {% if device.status == 'online' %}
+                                        <span class="badge bg-success">Online</span>
+                                    {% elif device.status == 'idle' %}
+                                        <span class="badge bg-warning">Idle</span>
+                                    {% elif device.status == 'maintenance' %}
+                                        <span class="badge bg-secondary">Maintenance</span>
+                                    {% elif device.status == 'error' %}
+                                        <span class="badge bg-danger">Error</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ device.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ device.last_seen.split('T')[0] if device.last_seen else 'Never' }}</td>
+                                <td>{{ device.firmware }}</td>
+                                <td>{{ device.total_scans }}</td>
+                                <td>
+                                    {% if device.edge_computing %}
+                                        <span class="badge bg-info">Enabled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-success" onclick="controlDevice('{{ device.id }}', 'start')">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="btn btn-outline-warning" onclick="controlDevice('{{ device.id }}', 'stop')">
+                                            <i class="fas fa-stop"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="controlDevice('{{ device.id }}', 'reset')">
+                                            <i class="fas fa-redo-alt"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="controlDevice('{{ device.id }}', 'simulate_error')">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-microchip fa-4x text-muted mb-3"></i>
+                <h5>No IoT Devices Found</h5>
+                <p class="text-muted">IoT simulator may not be running.</p>
+                <button class="btn btn-primary" onclick="location.reload()">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function controlDevice(deviceId, action) {
+    fetch(`/admin/iot/device/${deviceId}/control`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: action})
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        refreshDevices();
+    });
+}
+
+function refreshDevices() {
+    location.reload();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,128 @@
+<!-- ============================================
+     FILE: app/templates/doctor/patient_history.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Patient History - {{ patient.user.username }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-history me-2"></i>Patient History</h2>
+        <p class="text-muted">{{ patient.user.username }} (P{{ patient.id }})</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('doctor.patients_list') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Patients
+        </a>
+    </div>
+</div>
+
+<!-- Patient Info Card -->
+<div class="card shadow mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="fas fa-user me-2"></i>Patient Information</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <p><strong>Name:</strong> {{ patient.user.username }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Email:</strong> {{ patient.user.email }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Phone:</strong> {{ patient.phone or 'Not provided' }}</p>
+            </div>
+            <div class="col-md-3">
+                <p><strong>Blood Group:</strong> {{ patient.blood_group or 'Not provided' }}</p>
+            </div>
+        </div>
+        {% if patient.date_of_birth %}
+        <div class="row">
+            <div class="col-md-3">
+                <p><strong>DOB:</strong> {{ patient.date_of_birth }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Scan History -->
+<div class="card shadow">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-mri me-2"></i>Scan History</h5>
+    </div>
+    <div class="card-body">
+        {% if history and history|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Scan ID</th>
+                            <th>Date</th>
+                            <th>AI Diagnosis</th>
+                            <th>Confidence</th>
+                            <th>Your Diagnosis</th>
+                            <th>Severity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in history %}
+                            <tr>
+                                <td>#{{ item.scan.id }}</td>
+                                <td>{{ item.scan.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <span class="badge
+                                        {% if item.diagnosis.ai_prediction == 'glioma' %}bg-danger
+                                        {% elif item.diagnosis.ai_prediction == 'meningioma' %}bg-warning
+                                        {% elif item.diagnosis.ai_prediction == 'pituitary' %}bg-info
+                                        {% else %}bg-success{% endif %}">
+                                        {{ item.diagnosis.ai_prediction|capitalize }}
+                                    </span>
+                                </td>
+                                <td>{{ '%.1f'|format(item.diagnosis|headline_confidence) }}%</td>
+                                <td>
+                                    {% if item.diagnosis.doctor_diagnosis %}
+                                        <span class="badge bg-secondary">{{ item.diagnosis.doctor_diagnosis|capitalize }}</span>
+                                    {% else %}
+                                        <span class="text-muted">Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.treatment %}
+                                        {% if item.treatment.severity_level == 'critical' %}
+                                            <span class="badge bg-danger">Critical</span>
+                                        {% elif item.treatment.severity_level == 'urgent_surgery_needed' %}
+                                            <span class="badge bg-warning">Urgent</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Normal</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('doctor.review_scan', scan_id=item.scan.id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    {% if item.diagnosis and item.diagnosis.report %}
+                                        <a href="{{ url_for('patient.download_report', diagnosis_id=item.diagnosis.id) }}"
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">No scan history available for this patient.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

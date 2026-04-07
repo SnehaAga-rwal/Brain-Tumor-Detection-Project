@@ -1,0 +1,239 @@
+<!-- ============================================
+     FILE: app/templates/patient/dashboard.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Patient Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-home me-2"></i>Patient Dashboard</h2>
+        <p class="text-muted">Welcome back, {{ current_user.username }}!</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ url_for('patient.upload_scan') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-upload me-2"></i>Upload New MRI Scan
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Total Scans</h6>
+                        <h2 class="mb-0">{{ total_scans }}</h2>
+                    </div>
+                    <i class="fas fa-mri fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Completed</h6>
+                        <h2 class="mb-0">{{ completed_scans }}</h2>
+                    </div>
+                    <i class="fas fa-check-circle fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Pending</h6>
+                        <h2 class="mb-0">{{ pending_scans }}</h2>
+                    </div>
+                    <i class="fas fa-hourglass-half fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Notifications</h6>
+                        <h2 class="mb-0">{{ unread_count }}</h2>
+                    </div>
+                    <i class="fas fa-bell fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Scans -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent MRI Scans</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_scans %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Scan ID</th>
+                                    <th>Status</th>
+                                    <th>AI Result</th>
+                                    <th>Doctor Verified</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scan in recent_scans %}
+                                    <tr>
+                                        <td>{{ scan.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>#{{ scan.id }}</td>
+                                        <td>
+                                            {% if scan.status == 'completed' %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% elif scan.status == 'processing' %}
+                                                <span class="badge bg-warning">Processing</span>
+                                            {% elif scan.status == 'failed' %}
+                                                <span class="badge bg-danger">Failed</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Pending</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set diagnosis = scan.diagnosis %}
+                                            {% if diagnosis %}
+                                                {% if diagnosis.ai_prediction == 'glioma' %}
+                                                    <span class="badge bg-danger">Glioma</span>
+                                                {% elif diagnosis.ai_prediction == 'meningioma' %}
+                                                    <span class="badge bg-warning">Meningioma</span>
+                                                {% elif diagnosis.ai_prediction == 'pituitary' %}
+                                                    <span class="badge bg-info">Pituitary</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">No Tumor</span>
+                                                {% endif %}
+                                                <br>
+                                                <small>{{ (diagnosis|headline_confidence)|round(1) }}% confidence</small>
+                                            {% else %}
+                                                <span class="text-muted">Pending AI</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set diagnosis = scan.diagnosis %}
+                                            {% if diagnosis and diagnosis.doctor_verified %}
+                                                <span class="badge bg-success">Verified</span>
+                                            {% elif diagnosis %}
+                                                <span class="badge bg-warning">Pending</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('patient.scan_status', scan_id=scan.id) }}"
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            {% if diagnosis %}
+                                                <a href="{{ url_for('patient.download_report', diagnosis_id=diagnosis.id) }}"
+                                                   class="btn btn-sm btn-outline-success">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                    {% if diagnosis.report %}PDF{% else %}Generate{% endif %}
+                                                </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('patient.history') }}" class="btn btn-outline-primary">
+                            View Full History <i class="fas fa-arrow-right ms-2"></i>
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-mri fa-4x text-muted mb-3"></i>
+                        <h5>No Scans Yet</h5>
+                        <p class="text-muted">Upload your first MRI scan to get started.</p>
+                        <a href="{{ url_for('patient.upload_scan') }}" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload Now
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-calendar me-2"></i>Upcoming Appointments</h5>
+            </div>
+            <div class="card-body">
+                {% set has_appointments = false %}
+                {% for scan in recent_scans %}
+                    {% if scan.diagnosis and scan.diagnosis.treatment and scan.diagnosis.treatment.follow_up_date %}
+                        {% set has_appointments = true %}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-calendar-check fa-2x text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-0">Follow-up Appointment</h6>
+                                <small class="text-muted">
+                                    {{ scan.diagnosis.treatment.follow_up_date.strftime('%B %d, %Y at %I:%M %p') }}
+                                </small>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if not has_appointments %}
+                    <p class="text-muted text-center mb-0">No upcoming appointments</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Actions Needed</h5>
+            </div>
+            <div class="card-body">
+                {% set pending_count = 0 %}
+                {% for scan in recent_scans %}
+                    {% if scan.status == 'completed' and scan.diagnosis and not scan.diagnosis.treatment %}
+                        {% set pending_count = pending_count + 1 %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if pending_count > 0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        You have {{ pending_count }} scan(s) waiting for doctor's review.
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center mb-0">No pending actions</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

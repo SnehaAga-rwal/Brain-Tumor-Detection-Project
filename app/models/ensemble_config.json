@@ -1,0 +1,12 @@
+{
+    "_comment": "Runtime ensemble reads app/models/saved/ensemble_config.json first. Keep this file in sync for reference.",
+    "weights": [0.35, 0.25, 0.4],
+    "class_names": ["glioma", "meningioma", "notumor", "pituitary"],
+    "use_agreement_confidence": true,
+    "min_models_agree": 2,
+    "confidence_metric": "max_support",
+    "min_confidence_when_models_agree": 95,
+    "majority_floor_min_max_support": 0.85,
+    "min_confidence_when_max_support_at_least": 0.90,
+    "min_confidence_strong_model_pct": 95
+}

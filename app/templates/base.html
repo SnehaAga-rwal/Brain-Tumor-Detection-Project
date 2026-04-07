@@ -1,0 +1,199 @@
+<!-- ============================================
+     FILE: app/templates/base.html
+     ============================================ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Brain Tumor Detection System{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('auth.login') }}">
+                <i class="fas fa-brain me-2"></i>Brain Tumor Detection System
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.is_patient() %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('patient.dashboard') }}">
+                                    <i class="fas fa-home me-1"></i>Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('patient.upload_scan') }}">
+                                    <i class="fas fa-upload me-1"></i>Upload
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('patient.history') }}">
+                                    <i class="fas fa-history me-1"></i>History
+                                </a>
+                            </li>
+                        {% elif current_user.is_doctor() %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('doctor.dashboard') }}">
+                                    <i class="fas fa-home me-1"></i>Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('doctor.patients_list') }}">
+                                    <i class="fas fa-users me-1"></i>Patients
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('doctor.reports') }}">
+                                    <i class="fas fa-file-pdf me-1"></i>Reports
+                                </a>
+                            </li>
+                        {% elif current_user.is_admin() %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                                    <i class="fas fa-home me-1"></i>Dashboard
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin.users') }}">
+                                    <i class="fas fa-users-cog me-1"></i>Users
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin.audit_logs') }}">
+                                    <i class="fas fa-history me-1"></i>Audit
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <!-- Notifications -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-bell"></i>
+                                {% set unread_count = current_user.notifications.filter_by(read_status=False).count() %}
+                                {% if unread_count > 0 %}
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ unread_count }}
+                                    </span>
+                                {% endif %}
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationDropdown" style="width: 300px;">
+                                <div class="dropdown-header d-flex justify-content-between align-items-center">
+                                    <span>Notifications</span>
+                                    {% if unread_count > 0 %}
+                                        <a href="#" class="text-decoration-none small" onclick="markAllRead()">Mark all read</a>
+                                    {% endif %}
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                {% set recent_notifications = (current_user.notifications.all() | sort(attribute='created_at', reverse=True))[:5] %}
+                                {% for notif in recent_notifications %}
+                                    <a class="dropdown-item {% if not notif.read_status %}bg-light{% endif %}" href="#">
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                {% if notif.type == 'email' %}
+                                                    <i class="fas fa-envelope text-primary"></i>
+                                                {% else %}
+                                                    <i class="fas fa-bell text-warning"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="flex-grow-1 ms-2">
+                                                <small class="fw-bold">{{ notif.subject }}</small>
+                                                <br>
+                                                <small class="text-muted">{{ notif.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                            </div>
+                                        </div>
+                                    </a>
+                                {% else %}
+                                    <div class="dropdown-item text-muted text-center">No notifications</div>
+                                {% endfor %}
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item text-center small" href="{{ url_for('patient.notifications') if current_user.is_patient() else '#' }}">
+                                    View all notifications
+                                </a>
+                            </div>
+                        </li>
+
+                        <!-- User Menu -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('patient.profile') if current_user.is_patient() else '#' }}">
+                                        <i class="fas fa-id-card me-2"></i>Profile
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="container my-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-lg-start mt-5">
+        <div class="text-center p-3" style="background-color: rgba(0,0,0,0.05);">
+            © 2024 Brain Tumor Detection System | Poornima University, Jaipur
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <script>
+        function markAllRead() {
+            fetch('/patient/mark-all-read', {method: 'POST'})
+                .then(() => location.reload());
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

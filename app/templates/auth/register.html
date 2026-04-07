@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Register - Brain Tumor Detection{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-7">
+    <div class="card shadow-lg border-0 rounded-lg mt-5">
+      <div class="card-header bg-success text-white text-center py-4">
+        <h3 class="mb-0"><i class="fas fa-user-plus me-2"></i>Create Account</h3>
+        <p class="mb-0 mt-2">Register to get started</p>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('auth.register') }}">
+          <div class="mb-3">
+            <label for="username" class="form-label"><i class="fas fa-user me-2"></i>Username</label>
+            <input type="text" class="form-control" id="username" name="username" required placeholder="Choose a username">
+          </div>
+          <div class="mb-3">
+            <label for="email" class="form-label"><i class="fas fa-envelope me-2"></i>Email Address</label>
+            <input type="email" class="form-control" id="email" name="email" required placeholder="Enter your email">
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="password" class="form-label"><i class="fas fa-lock me-2"></i>Password</label>
+                <input type="password" class="form-control" id="password" name="password" required placeholder="Enter password">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="confirm_password" class="form-label"><i class="fas fa-check me-2"></i>Confirm Password</label>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required placeholder="Re-enter password">
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="role" class="form-label"><i class="fas fa-user-tag me-2"></i>Role</label>
+            <select class="form-select" id="role" name="role" required>
+              <option value="patient" selected>Patient</option>
+              <option value="doctor">Doctor</option>
+            </select>
+          </div>
+          <div id="doctorFields" style="display:none;">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="specialization" class="form-label"><i class="fas fa-stethoscope me-2"></i>Specialization</label>
+                  <input type="text" class="form-control" id="specialization" name="specialization" placeholder="e.g., Neuro-Oncology">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="license_number" class="form-label"><i class="fas fa-id-badge me-2"></i>License Number</label>
+                  <input type="text" class="form-control" id="license_number" name="license_number" placeholder="e.g., DOC-1234">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-user-check me-2"></i>Register</button>
+          </div>
+        </form>
+        <div class="text-center mt-4">
+          <p class="mb-0">Already have an account?
+            <a href="{{ url_for('auth.login') }}" class="text-decoration-none fw-bold">Login here</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+  const roleSelect = document.getElementById('role');
+  const doctorFields = document.getElementById('doctorFields');
+  function toggleDoctorFields() {
+    doctorFields.style.display = roleSelect.value === 'doctor' ? 'block' : 'none';
+  }
+  roleSelect.addEventListener('change', toggleDoctorFields);
+  toggleDoctorFields();
+</script>
+{% endblock %}
+
+

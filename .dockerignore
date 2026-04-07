@@ -1,0 +1,13 @@
+venv
+.venv
+__pycache__
+*.pyc
+.git
+.idea
+*.db
+.pytest_cache
+.cursor
+visualization_outputs
+**/terminals
+**/*.pkl
+data/raw

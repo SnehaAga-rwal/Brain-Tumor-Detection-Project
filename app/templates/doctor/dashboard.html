@@ -1,0 +1,224 @@
+<!-- ============================================
+     FILE: app/templates/doctor/dashboard.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Doctor Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-stethoscope me-2"></i>Doctor Dashboard</h2>
+        <p class="text-muted">Welcome back, Dr. {{ current_user.username }}</p>
+    </div>
+    <div class="col-auto">
+        <span class="badge bg-success p-3">
+            <i class="fas fa-check-circle me-2"></i>Verified Specialist
+        </span>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-danger mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Critical Cases</h6>
+                        <h2 class="mb-0">{{ critical_count }}</h2>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Urgent Surgery</h6>
+                        <h2 class="mb-0">{{ urgent_count }}</h2>
+                    </div>
+                    <i class="fas fa-ambulance fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Normal Cases</h6>
+                        <h2 class="mb-0">{{ normal_count }}</h2>
+                    </div>
+                    <i class="fas fa-heartbeat fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Pending Review</h6>
+                        <h2 class="mb-0">{{ pending_diagnoses|length }}</h2>
+                    </div>
+                    <i class="fas fa-hourglass-half fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Your Performance</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h3>{{ total_reviewed }}</h3>
+                        <p class="text-muted">Total Cases Reviewed</p>
+                    </div>
+                    <div class="col-6">
+                        <h3>{{ reviewed_today }}</h3>
+                        <p class="text-muted">Reviewed Today</p>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 20px;">
+                    <div class="progress-bar bg-success" role="progressbar"
+                         style="width: {{ (reviewed_today / 20 * 100) if reviewed_today > 0 else 0 }}%">
+                        Daily Goal: {{ reviewed_today }}/20
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="#pending-cases" class="btn btn-outline-primary">
+                        <i class="fas fa-eye me-2"></i>Review Pending Cases
+                    </a>
+                    <a href="{{ url_for('doctor.patients_list') }}" class="btn btn-outline-success">
+                        <i class="fas fa-users me-2"></i>View All Patients
+                    </a>
+                    <a href="{{ url_for('doctor.reports') }}" class="btn btn-outline-info">
+                        <i class="fas fa-file-pdf me-2"></i>Generate Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pending Cases Section -->
+<div class="row" id="pending-cases">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock me-2 text-warning"></i>Pending Cases Requiring Review</h5>
+                <span class="badge bg-warning">{{ pending_diagnoses|length }} Pending</span>
+            </div>
+            <div class="card-body">
+                {% if pending_diagnoses %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Priority</th>
+                                    <th>Patient</th>
+                                    <th>Scan Date</th>
+                                    <th>AI Prediction</th>
+                                    <th>Confidence</th>
+                                    <th>Model Consensus</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for diagnosis in pending_diagnoses %}
+                                    <tr>
+                                        <td>
+                                            {% if diagnosis.ai_prediction != 'normal' and (diagnosis|headline_confidence) > 85 %}
+                                                <span class="badge bg-danger">HIGH</span>
+                                            {% elif diagnosis.ai_prediction != 'normal' %}
+                                                <span class="badge bg-warning">MEDIUM</span>
+                                            {% else %}
+                                                <span class="badge bg-success">LOW</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ diagnosis.scan.patient.user.username }}</strong>
+                                            <br>
+                                            <small class="text-muted">ID: P{{ diagnosis.scan.patient.id }}</small>
+                                        </td>
+                                        <td>{{ diagnosis.scan.upload_date.strftime('%Y-%m-%d') }}</td>
+                                        <td>
+                                            {% if diagnosis.ai_prediction == 'glioma' %}
+                                                <span class="badge bg-danger">Glioma</span>
+                                            {% elif diagnosis.ai_prediction == 'meningioma' %}
+                                                <span class="badge bg-warning">Meningioma</span>
+                                            {% elif diagnosis.ai_prediction == 'pituitary' %}
+                                                <span class="badge bg-info">Pituitary</span>
+                                            {% else %}
+                                                <span class="badge bg-success">No Tumor</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <span class="me-2">{{ (diagnosis|headline_confidence)|round(1) }}%</span>
+                                                <div class="progress flex-grow-1" style="height: 5px;">
+                                                    <div class="progress-bar bg-primary"
+                                                         style="width: {{ diagnosis|headline_confidence }}%"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% set mp_raw = diagnosis.model_predictions|fromjson %}
+                                            {% set models = mp_raw.model_details if mp_raw.model_details is defined else mp_raw %}
+                                            {% set resnet = models.get('resnet50', {}).get('confidence', 0) %}
+                                            {% set mobilenet = models.get('mobilenetv2', {}).get('confidence', 0) %}
+                                            {% set custom = models.get('custom_cnn', {}).get('confidence', 0) %}
+                                            {% set confidences = [resnet, mobilenet, custom] %}
+                                            {% set range_value = confidences|range_diff %}
+                                            {% if range_value < 10 %}
+                                                <span class="badge bg-success">High</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Disagreement</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('doctor.review_scan', scan_id=diagnosis.scan.id) }}"
+                                               class="btn btn-sm btn-primary">
+                                                <i class="fas fa-stethoscope"></i> Review
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                        <h5>All Caught Up!</h5>
+                        <p class="text-muted">No pending cases to review at the moment.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

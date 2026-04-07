@@ -1,0 +1,91 @@
+<!-- ============================================
+     FILE: app/templates/patient/notifications.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-bell me-2"></i>Notifications</h2>
+        <p class="text-muted">All your notifications</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-primary" onclick="markAllRead()">
+            <i class="fas fa-check-double me-2"></i>Mark All as Read
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        {% if notifications and notifications|length > 0 %}
+            <div class="list-group">
+                {% for notif in notifications %}
+                    <div class="list-group-item list-group-item-action {% if not notif.read_status %}list-group-item-primary{% endif %}">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    {% if notif.type == 'email' %}
+                                        <i class="fas fa-envelope text-primary me-2"></i>
+                                    {% else %}
+                                        <i class="fas fa-bell text-warning me-2"></i>
+                                    {% endif %}
+                                    {{ notif.subject }}
+                                </h6>
+                                <p class="mb-1">{{ notif.message }}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>{{ notif.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                            </div>
+                            <div>
+                                {% if not notif.read_status %}
+                                    <a href="{{ url_for('patient.mark_notification_read', notification_id=notif.id) }}"
+                                       class="btn btn-sm btn-outline-success me-2">
+                                        <i class="fas fa-check"></i> Mark Read
+                                    </a>
+                                {% endif %}
+                                {% if notif.related_entity_type == 'scan' %}
+                                    <a href="{{ url_for('patient.scan_status', scan_id=notif.related_entity_id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                {% elif notif.related_entity_type == 'diagnosis' %}
+                                    {% if notif.related_entity_id %}
+                                        <a href="{{ url_for('patient.view_treatment', diagnosis_id=notif.related_entity_id) }}"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    {% endif %}
+                                {% elif notif.related_entity_type == 'treatment' %}
+                                    <a href="{{ url_for('patient.view_treatment', diagnosis_id=notif.related_entity_id) }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
+                <h5>No Notifications</h5>
+                <p class="text-muted">You don't have any notifications at the moment.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function markAllRead() {
+    fetch('/patient/mark-all-read', {method: 'POST'})
+        .then(() => {
+            location.reload();
+        });
+}
+</script>
+{% endblock %}
+

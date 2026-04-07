@@ -1,0 +1,549 @@
+<!-- ============================================
+     FILE: app/templates/doctor/review_scan.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}Review Scan #{{ scan.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .image-tools {
+        position: sticky;
+        top: 20px;
+    }
+
+    .tool-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin: 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .tool-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .tool-btn.active {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .annotation-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+    }
+
+    .annotation-canvas.active {
+        pointer-events: all;
+        cursor: crosshair;
+    }
+
+    .severity-selector {
+        display: flex;
+        gap: 10px;
+        margin: 15px 0;
+    }
+
+    .severity-option {
+        flex: 1;
+        padding: 15px;
+        border-radius: 10px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s;
+    }
+
+    .severity-option.critical {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .severity-option.urgent {
+        background-color: #fd7e14;
+        color: white;
+    }
+
+    .severity-option.normal {
+        background-color: #28a745;
+        color: white;
+    }
+
+    .severity-option.selected {
+        transform: scale(1.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        border-color: #333;
+    }
+
+    .severity-option input[type="radio"] {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col">
+        <h2><i class="fas fa-stethoscope me-2"></i>Review MRI Scan</h2>
+        <p class="text-muted">Patient: {{ patient.user.username }} | Scan ID: #{{ scan.id }}</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-success" onclick="submitReview()">
+            <i class="fas fa-check-circle me-2"></i>Submit Review
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column - MRI Image with Tools -->
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-image me-2"></i>MRI Scan</h5>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="zoomIn()">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="zoomOut()">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="resetImage()">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body position-relative" style="min-height: 500px;">
+                <!-- Image Container -->
+                <div class="image-container text-center" id="imageContainer">
+                    <img src="{{ url_for('static', filename=scan.file_path.replace('app/static/', '')) }}"
+                         id="mriImage" class="img-fluid" style="max-height: 500px; cursor: crosshair;">
+                    <canvas id="annotationCanvas" class="annotation-canvas" width="800" height="600"></canvas>
+                </div>
+
+                <!-- Image Tools -->
+                <div class="image-tools position-absolute top-0 start-0 p-2">
+                    <div class="tool-btn bg-light" title="Pan" onclick="setTool('pan')" id="toolPan">
+                        <i class="fas fa-hand-paper"></i>
+                    </div>
+                    <div class="tool-btn bg-light" title="Draw" onclick="setTool('draw')" id="toolDraw">
+                        <i class="fas fa-pencil-alt"></i>
+                    </div>
+                    <div class="tool-btn bg-light" title="Arrow" onclick="setTool('arrow')" id="toolArrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                    <div class="tool-btn bg-light" title="Text" onclick="setTool('text')" id="toolText">
+                        <i class="fas fa-font"></i>
+                    </div>
+                    <div class="tool-btn bg-light" title="Measure" onclick="setTool('measure')" id="toolMeasure">
+                        <i class="fas fa-ruler"></i>
+                    </div>
+                    <hr>
+                    <div class="tool-btn bg-light" title="Contrast +" onclick="adjustContrast(10)">
+                        <i class="fas fa-sun"></i>
+                    </div>
+                    <div class="tool-btn bg-light" title="Contrast -" onclick="adjustContrast(-10)">
+                        <i class="fas fa-moon"></i>
+                    </div>
+                    <div class="tool-btn bg-light" title="Clear Annotations" onclick="clearAnnotations()">
+                        <i class="fas fa-eraser"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Analysis Summary -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI Analysis Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if model_predictions %}
+                        {% for model_name, model_data in model_predictions.items() %}
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            {% if model_name == 'resnet50' %}ResNet50
+                                            {% elif model_name == 'mobilenetv2' %}MobileNetV2
+                                            {% else %}Custom CNN{% endif %}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <h5>{{ model_data.prediction|capitalize }}</h5>
+                                        <div class="progress mb-2">
+                                            <div class="progress-bar" style="width: {{ model_data.confidence }}%">
+                                                {{ model_data.confidence|round(1) }}%
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Confidence</small>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="alert alert-primary mt-3 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Ensemble Prediction:</strong>
+                    {{ diagnosis.ai_prediction|capitalize }} with
+                    <strong>{{ (diagnosis|headline_confidence)|round(1) }}%</strong> confidence
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column - Review Form -->
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Clinical Review</h5>
+            </div>
+            <div class="card-body">
+                <form id="reviewForm">
+                    <input type="hidden" id="diagnosisId" value="{{ diagnosis.id }}">
+
+                    <!-- Diagnosis Verification -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Diagnosis Verification</label>
+                        <select class="form-select" id="doctorDiagnosis">
+                            <option value="{{ diagnosis.ai_prediction }}" selected>
+                                Confirm AI: {{ diagnosis.ai_prediction|capitalize }}
+                            </option>
+                            <option value="glioma">Glioma</option>
+                            <option value="meningioma">Meningioma</option>
+                            <option value="pituitary">Pituitary</option>
+                            <option value="normal">No Tumor</option>
+                        </select>
+                    </div>
+
+                    <!-- Severity Level (CRITICAL FEATURE) -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Severity Level</label>
+                        <div class="severity-selector">
+                            <label class="severity-option critical">
+                                <input type="radio" name="severity" value="critical">
+                                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                                <br>
+                                <strong>CRITICAL</strong>
+                                <br>
+                                <small>Immediate attention</small>
+                            </label>
+                            <label class="severity-option urgent">
+                                <input type="radio" name="severity" value="urgent_surgery_needed">
+                                <i class="fas fa-ambulance fa-2x mb-2"></i>
+                                <br>
+                                <strong>URGENT SURGERY</strong>
+                                <br>
+                                <small>Prompt intervention</small>
+                            </label>
+                            <label class="severity-option normal">
+                                <input type="radio" name="severity" value="normal_monitoring">
+                                <i class="fas fa-heartbeat fa-2x mb-2"></i>
+                                <br>
+                                <strong>NORMAL</strong>
+                                <br>
+                                <small>Monitoring required</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Treatment Plan -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Prescription</label>
+                        <textarea class="form-control" id="prescription" rows="3"
+                                  placeholder="Medication name, dosage, duration..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Recommended Therapies</label>
+                        <div id="therapiesList">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" placeholder="Therapy name">
+                                <button class="btn btn-outline-success" type="button" onclick="addTherapy(this)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Lifestyle Modifications</label>
+                        <div id="lifestyleList">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" placeholder="Modification">
+                                <button class="btn btn-outline-success" type="button" onclick="addLifestyle(this)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Follow-up Date</label>
+                        <input type="datetime-local" class="form-control" id="followUpDate">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Refer to Specialist</label>
+                        <input type="text" class="form-control" id="specialist"
+                               placeholder="Specialist name/hospital">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Additional Notes</label>
+                        <textarea class="form-control" id="additionalNotes" rows="3"></textarea>
+                    </div>
+
+                    <!-- Digital Signature -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Digital Signature</label>
+                        <div class="border rounded p-3 text-center">
+                            <canvas id="signaturePad" width="300" height="100"
+                                    style="border: 1px solid #ddd; cursor: crosshair;"></canvas>
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSignature()">
+                                    Clear
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="useStoredSignature()">
+                                    Use Stored
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="button" class="btn btn-success btn-lg w-100" onclick="submitReview()">
+                        <i class="fas fa-check-circle me-2"></i>Finalize Review
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Image manipulation variables
+let currentTool = 'pan';
+let isDrawing = false;
+let ctx = document.getElementById('annotationCanvas')?.getContext('2d');
+let img = document.getElementById('mriImage');
+let canvas = document.getElementById('annotationCanvas');
+let scale = 1;
+let annotations = [];
+
+// Signature variables
+let signaturePad = document.getElementById('signaturePad');
+let sigCtx = signaturePad?.getContext('2d');
+let isSigning = false;
+
+// Initialize canvas
+if (canvas) {
+    canvas.width = img.clientWidth;
+    canvas.height = img.clientHeight;
+}
+
+// Tool selection
+function setTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`tool${tool.charAt(0).toUpperCase() + tool.slice(1)}`).classList.add('active');
+
+    if (tool === 'draw' || tool === 'arrow') {
+        canvas.classList.add('active');
+    } else {
+        canvas.classList.remove('active');
+    }
+}
+
+// Zoom functions
+function zoomIn() {
+    scale += 0.1;
+    img.style.transform = `scale(${scale})`;
+}
+
+function zoomOut() {
+    scale = Math.max(0.5, scale - 0.1);
+    img.style.transform = `scale(${scale})`;
+}
+
+function resetImage() {
+    scale = 1;
+    img.style.transform = 'scale(1)';
+    img.style.filter = 'none';
+}
+
+// Contrast adjustment
+function adjustContrast(value) {
+    let currentFilter = img.style.filter;
+    let contrast = parseInt(currentFilter.match(/contrast\((\d+)%\)/)?.[1] || '100');
+    contrast = Math.max(0, Math.min(200, contrast + value));
+    img.style.filter = `contrast(${contrast}%)`;
+}
+
+// Annotation functions
+if (canvas) {
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+}
+
+function startDrawing(e) {
+    if (currentTool === 'draw' || currentTool === 'arrow') {
+        isDrawing = true;
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+    }
+}
+
+function draw(e) {
+    if (!isDrawing) return;
+
+    if (currentTool === 'draw') {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+    }
+}
+
+function stopDrawing() {
+    isDrawing = false;
+}
+
+function clearAnnotations() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// Therapy management
+function addTherapy(button) {
+    const container = document.getElementById('therapiesList');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control" placeholder="Therapy name">
+        <button class="btn btn-outline-danger" type="button" onclick="this.closest('.input-group').remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function addLifestyle(button) {
+    const container = document.getElementById('lifestyleList');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control" placeholder="Modification">
+        <button class="btn btn-outline-danger" type="button" onclick="this.closest('.input-group').remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+// Signature functions
+if (signaturePad) {
+    signaturePad.addEventListener('mousedown', startSigning);
+    signaturePad.addEventListener('mousemove', sign);
+    signaturePad.addEventListener('mouseup', stopSigning);
+}
+
+function startSigning(e) {
+    isSigning = true;
+    sigCtx.beginPath();
+    sigCtx.moveTo(e.offsetX, e.offsetY);
+}
+
+function sign(e) {
+    if (!isSigning) return;
+    sigCtx.strokeStyle = 'blue';
+    sigCtx.lineWidth = 2;
+    sigCtx.lineTo(e.offsetX, e.offsetY);
+    sigCtx.stroke();
+}
+
+function stopSigning() {
+    isSigning = false;
+}
+
+function clearSignature() {
+    sigCtx.clearRect(0, 0, signaturePad.width, signaturePad.height);
+}
+
+function useStoredSignature() {
+    // Simulate stored signature
+    sigCtx.font = '20px Arial';
+    sigCtx.fillStyle = 'blue';
+    sigCtx.fillText('Dr. ' + '{{ current_user.username }}', 50, 50);
+}
+
+// Severity selection
+document.querySelectorAll('input[name="severity"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('.severity-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        this.closest('.severity-option').classList.add('selected');
+    });
+});
+
+// Submit review
+function submitReview() {
+    const selectedSeverity = document.querySelector('input[name="severity"]:checked')?.value;
+    if (!selectedSeverity) {
+        alert('Please select severity level');
+        return;
+    }
+
+    // Collect therapies
+    const therapies = [];
+    document.querySelectorAll('#therapiesList input').forEach(input => {
+        if (input.value) therapies.push(input.value);
+    });
+
+    // Collect lifestyle modifications
+    const lifestyles = [];
+    document.querySelectorAll('#lifestyleList input').forEach(input => {
+        if (input.value) lifestyles.push(input.value);
+    });
+
+    const data = {
+        doctor_notes: document.getElementById('additionalNotes')?.value || '',
+        doctor_diagnosis: document.getElementById('doctorDiagnosis')?.value,
+        severity_level: selectedSeverity,
+        prescription: document.getElementById('prescription')?.value || '',
+        recommended_therapies: therapies,
+        lifestyle_modifications: lifestyles,
+        follow_up_date: document.getElementById('followUpDate')?.value,
+        referred_specialist: document.getElementById('specialist')?.value,
+        additional_notes: document.getElementById('additionalNotes')?.value
+    };
+
+    fetch(`/doctor/submit-review/{{ diagnosis.id }}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Review submitted successfully!');
+            window.location.href = '/doctor/dashboard';
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error submitting review: ' + error);
+    });
+}
+</script>
+{% endblock %}

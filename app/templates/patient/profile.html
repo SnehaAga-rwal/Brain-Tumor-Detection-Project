@@ -1,0 +1,170 @@
+<!-- ============================================
+     FILE: app/templates/patient/profile.html
+     ============================================ -->
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="fas fa-id-card me-2"></i>My Profile</h2>
+        <p class="text-muted">Manage your personal information</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Profile Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('patient.profile') }}">
+                    <!-- Username (read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Username</label>
+                        <input type="text" class="form-control" value="{{ current_user.username }}" readonly disabled>
+                    </div>
+
+                    <!-- Email (read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" class="form-control" value="{{ current_user.email }}" readonly disabled>
+                    </div>
+
+                    <!-- Phone -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Phone Number</label>
+                        <input type="tel" class="form-control" name="phone" value="{{ patient.phone or '' }}"
+                               placeholder="Enter your phone number">
+                    </div>
+
+                    <!-- Date of Birth -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Date of Birth</label>
+                        <input type="date" class="form-control" name="date_of_birth"
+                               value="{{ patient.date_of_birth or '' }}">
+                    </div>
+
+                    <!-- Address -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Address</label>
+                        <textarea class="form-control" name="address" rows="2"
+                                  placeholder="Enter your address">{{ patient.address or '' }}</textarea>
+                    </div>
+
+                    <!-- Blood Group -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Blood Group</label>
+                        <select class="form-select" name="blood_group">
+                            <option value="">Select Blood Group</option>
+                            <option value="A+" {% if patient.blood_group == 'A+' %}selected{% endif %}>A+</option>
+                            <option value="A-" {% if patient.blood_group == 'A-' %}selected{% endif %}>A-</option>
+                            <option value="B+" {% if patient.blood_group == 'B+' %}selected{% endif %}>B+</option>
+                            <option value="B-" {% if patient.blood_group == 'B-' %}selected{% endif %}>B-</option>
+                            <option value="AB+" {% if patient.blood_group == 'AB+' %}selected{% endif %}>AB+</option>
+                            <option value="AB-" {% if patient.blood_group == 'AB-' %}selected{% endif %}>AB-</option>
+                            <option value="O+" {% if patient.blood_group == 'O+' %}selected{% endif %}>O+</option>
+                            <option value="O-" {% if patient.blood_group == 'O-' %}selected{% endif %}>O-</option>
+                        </select>
+                    </div>
+
+                    <!-- Emergency Contact -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Emergency Contact</label>
+                        <input type="text" class="form-control" name="emergency_contact"
+                               value="{{ patient.emergency_contact or '' }}"
+                               placeholder="Name and phone number of emergency contact">
+                    </div>
+
+                    <!-- Allergies -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Allergies</label>
+                        <div id="allergiesContainer">
+                            {% if allergies_list and allergies_list|length > 0 %}
+                                {% for allergy in allergies_list %}
+                                    <div class="input-group mb-2">
+                                        <input type="text" class="form-control" name="allergies" value="{{ allergy }}">
+                                        <button class="btn btn-outline-danger" type="button" onclick="this.closest('.input-group').remove()">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" name="allergies" placeholder="Enter allergy">
+                                    <button class="btn btn-outline-success" type="button" onclick="addAllergy()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">List any allergies you have</small>
+                    </div>
+
+                    <!-- Chronic Conditions -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Chronic Conditions</label>
+                        <div id="conditionsContainer">
+                            {% if conditions_list and conditions_list|length > 0 %}
+                                {% for condition in conditions_list %}
+                                    <div class="input-group mb-2">
+                                        <input type="text" class="form-control" name="chronic_conditions" value="{{ condition }}">
+                                        <button class="btn btn-outline-danger" type="button" onclick="this.closest('.input-group').remove()">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="input-group mb-2">
+                                    <input type="text" class="form-control" name="chronic_conditions" placeholder="Enter chronic condition">
+                                    <button class="btn btn-outline-success" type="button" onclick="addCondition()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">List any chronic medical conditions</small>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addAllergy() {
+    const container = document.getElementById('allergiesContainer');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control" name="allergies" placeholder="Enter allergy">
+        <button class="btn btn-outline-danger" type="button" onclick="this.closest('.input-group').remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function addCondition() {
+    const container = document.getElementById('conditionsContainer');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" class="form-control" name="chronic_conditions" placeholder="Enter chronic condition">
+        <button class="btn btn-outline-danger" type="button" onclick="this.closest('.input-group').remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
+}
+</script>
+{% endblock %}
