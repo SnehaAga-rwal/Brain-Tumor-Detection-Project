@@ -50,3 +50,14 @@ app/static/reports/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Keep trained model artifacts in git (stored via Git LFS)
+!app/models/saved/
+!app/models/saved/*.h5
+!app/models/saved/*.keras
+!app/models/saved/*.pkl
+!saved_models/
+!saved_models/*.h5
+!saved_models/*.keras
+!models_training/mobilenetv2_best_model.h5
+!mobilenetv2_best_model.h5
