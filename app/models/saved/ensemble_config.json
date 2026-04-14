@@ -1,5 +1,5 @@
 {
-    "weights": [0.35, 0.25, 0.4],
+    "weights": [0.45, 0.1, 0.45],
     "class_names": ["glioma", "meningioma", "notumor", "pituitary"],
     "accuracy": 0.965,
     "model_accuracies": {

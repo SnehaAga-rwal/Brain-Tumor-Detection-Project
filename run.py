@@ -1,4 +1,3 @@
-
 """
 Brain Tumor Detection System
 Main entry point for the application
@@ -15,76 +14,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Create Flask app
 app = create_app(os.getenv('FLASK_CONFIG') or 'default')
 migrate = Migrate(app, db)
-
-
-def initialize_database_and_seed():
-    """
-    Ensure tables and required default users exist in all environments
-    (including Render/Gunicorn where __main__ block is not executed).
-    """
-    from datetime import datetime
-
-    with app.app_context():
-        # Models are imported at module level above; keep create_all after imports.
-        db.create_all()
-
-        changes_made = False
-
-        # Admin
-        admin = User.query.filter_by(email='admin@braintumor.com').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                email='admin@braintumor.com',
-                role='admin',
-                email_verified=True
-            )
-            admin.set_password('Admin@123')
-            db.session.add(admin)
-            changes_made = True
-
-        # Patient
-        patient_user = User.query.filter_by(email='patient@braintumor.com').first()
-        if not patient_user:
-            patient_user = User(
-                username='patient',
-                email='patient@braintumor.com',
-                role='patient',
-                email_verified=True
-            )
-            patient_user.set_password('Patient@123')
-            db.session.add(patient_user)
-            db.session.flush()
-            db.session.add(Patient(user_id=patient_user.id))
-            changes_made = True
-
-        # Doctor
-        doctor_user = User.query.filter_by(email='doctor@braintumor.com').first()
-        if not doctor_user:
-            doctor_user = User(
-                username='doctor',
-                email='doctor@braintumor.com',
-                role='doctor',
-                email_verified=True
-            )
-            doctor_user.set_password('Doctor@123')
-            db.session.add(doctor_user)
-            db.session.flush()
-            db.session.add(Doctor(
-                user_id=doctor_user.id,
-                specialization='Neuro-Oncology',
-                license_number='DOC-0001',
-                verification_status=True,
-                verification_date=datetime.utcnow()
-            ))
-            changes_made = True
-
-        if changes_made:
-            db.session.commit()
-
-
-# Run initialization on app startup/import (production-safe).
-initialize_database_and_seed()
 
 
 @app.shell_context_processor
@@ -201,6 +130,44 @@ if __name__ == '__main__':
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
+
+    # Initialize database on first run
+    with app.app_context():
+        db.create_all()
+
+        # Create default users if they don't exist
+        from app.database.models import User, Patient, Doctor
+
+        # Admin
+        if not User.query.filter_by(email='admin@braintumor.com').first():
+            admin = User(username='admin', email='admin@braintumor.com', role='admin', email_verified=True)
+            admin.set_password('Admin@123')
+            db.session.add(admin)
+
+        # Patient
+        if not User.query.filter_by(email='patient@braintumor.com').first():
+            patient_user = User(username='patient', email='patient@braintumor.com', role='patient', email_verified=True)
+            patient_user.set_password('Patient@123')
+            db.session.add(patient_user)
+            db.session.flush()
+            patient = Patient(user_id=patient_user.id)
+            db.session.add(patient)
+
+        # Doctor
+        if not User.query.filter_by(email='doctor@braintumor.com').first():
+            doctor_user = User(username='doctor', email='doctor@braintumor.com', role='doctor', email_verified=True)
+            doctor_user.set_password('Doctor@123')
+            db.session.add(doctor_user)
+            db.session.flush()
+            doctor = Doctor(
+                user_id=doctor_user.id,
+                specialization='Neuro-Oncology',
+                license_number='DOC-0001',
+                verification_status=True
+            )
+            db.session.add(doctor)
+
+        db.session.commit()
 
     # Start IoT simulator
     try:

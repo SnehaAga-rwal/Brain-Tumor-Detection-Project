@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
+from class_mapping import CANONICAL_CLASSES, resolve_class_dirs
 
 print("\n" + "=" * 60)
 print("BRAIN TUMOR MobileNetV2 TRAINING (OPTIMIZED FOR 95%+ ACCURACY)")
@@ -28,13 +29,22 @@ print(f"🎯 Target: >95% accuracy")
 # ==============================
 print("\n📊 Loading datasets...")
 
+# Resolve class folder names (supports Kaggle aliases) but enforce canonical class order.
+train_split = os.path.join(DATASET_PATH, "Training")
+test_split = os.path.join(DATASET_PATH, "Testing")
+resolved_train = resolve_class_dirs(train_split)
+resolved_test = resolve_class_dirs(test_split)
+train_folder_order = [os.path.basename(resolved_train[c]) for c in CANONICAL_CLASSES]
+test_folder_order = [os.path.basename(resolved_test[c]) for c in CANONICAL_CLASSES]
+
 # Load training data with validation split
 full_train_ds = tf.keras.utils.image_dataset_from_directory(
-    os.path.join(DATASET_PATH, "Training"),
+    train_split,
     image_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     seed=SEED,
-    label_mode='int'
+    label_mode='int',
+    class_names=train_folder_order
 )
 
 # Split training into train (80%) and validation (20%)
@@ -46,14 +56,15 @@ val_ds = full_train_ds.skip(train_size)
 
 # Load test data
 test_ds = tf.keras.utils.image_dataset_from_directory(
-    os.path.join(DATASET_PATH, "Testing"),
+    test_split,
     image_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     shuffle=False,
-    label_mode='int'
+    label_mode='int',
+    class_names=test_folder_order
 )
 
-class_names = full_train_ds.class_names
+class_names = CANONICAL_CLASSES
 NUM_CLASSES = len(class_names)
 print(f"\n✅ Classes: {class_names}")
 print(f"✅ Training batches: {train_size}")

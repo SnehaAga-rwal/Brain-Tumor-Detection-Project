@@ -5,6 +5,8 @@ import os
 import json
 import logging
 import threading
+import tempfile
+import zipfile
 from collections import Counter
 from pathlib import Path
 
@@ -83,10 +85,87 @@ def _find_model_path(model_key: str) -> str | None:
 
 def _load_keras_model(path: str):
     """load_model with best compatibility across TF/Keras versions."""
+    def _strip_incompatible_keys(obj):
+        if isinstance(obj, dict):
+            # Keys frequently present in newer Keras configs that older loaders reject
+            obj.pop("quantization_config", None)
+            obj.pop("synchronized", None)
+            for k, v in list(obj.items()):
+                obj[k] = _strip_incompatible_keys(v)
+            return obj
+        if isinstance(obj, list):
+            return [_strip_incompatible_keys(v) for v in obj]
+        return obj
+
+    def _sanitized_keras_archive(original_path: str) -> str:
+        """
+        Create a temporary .keras archive with sanitized config.json
+        to tolerate cross-version deserialization differences.
+        """
+        fd, tmp_path = tempfile.mkstemp(suffix=".keras")
+        os.close(fd)
+        with zipfile.ZipFile(original_path, "r") as zin, zipfile.ZipFile(tmp_path, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                data = zin.read(item.filename)
+                if item.filename == "config.json":
+                    try:
+                        cfg = json.loads(data.decode("utf-8"))
+                        cfg = _strip_incompatible_keys(cfg)
+                        data = json.dumps(cfg).encode("utf-8")
+                    except Exception:
+                        pass
+                zout.writestr(item, data)
+        return tmp_path
+
+    class CompatDense(tf.keras.layers.Dense):
+        @classmethod
+        def from_config(cls, config):
+            cfg = dict(config)
+            cfg.pop("quantization_config", None)
+            return super().from_config(cfg)
+
+    class CompatBatchNorm(tf.keras.layers.BatchNormalization):
+        @classmethod
+        def from_config(cls, config):
+            cfg = dict(config)
+            cfg.pop("synchronized", None)
+            cfg.pop("quantization_config", None)
+            return super().from_config(cfg)
+
+    custom_objects = {
+        "Dense": CompatDense,
+        "BatchNormalization": CompatBatchNorm,
+    }
+
     try:
-        return models.load_model(path, compile=False, safe_mode=False)
+        return models.load_model(
+            path,
+            compile=False,
+            safe_mode=False,
+            custom_objects=custom_objects,
+        )
     except TypeError:
-        return models.load_model(path, compile=False)
+        return models.load_model(path, compile=False, custom_objects=custom_objects)
+    except Exception:
+        # Last-resort compatibility path for .keras archives saved with newer metadata keys.
+        if str(path).lower().endswith(".keras"):
+            tmp_path = _sanitized_keras_archive(path)
+            try:
+                try:
+                    return models.load_model(
+                        tmp_path,
+                        compile=False,
+                        safe_mode=False,
+                        custom_objects=custom_objects,
+                    )
+                except TypeError:
+                    return models.load_model(tmp_path, compile=False, custom_objects=custom_objects)
+            finally:
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+        raise
 
 
 class EnsemblePredictor:
@@ -243,6 +322,11 @@ class EnsemblePredictor:
         # Fresh config each scan (weights / confidence_metric) without restarting the process singleton
         self.config = self._load_config()
         if not any([self.resnet_model, self.mobilenet_model, self.custom_model]):
+            # Retry loading in case app boot happened before model files were available
+            # or a previous deserialization hiccup left the singleton empty.
+            self._load_models()
+            self._log_load_status()
+        if not any([self.resnet_model, self.mobilenet_model, self.custom_model]):
             self.logger.error("No Keras models loaded — cannot run inference.")
             return self._error_result("No neural network weights could be loaded. Check app/models/saved and logs.")
 
@@ -262,6 +346,8 @@ class EnsemblePredictor:
         model_preds = {}
         weighted_slices = []
         active_weights = []
+        model_prob_arrays = {}
+        model_weight_map = {}
 
         for name, model, w in models_to_check:
             if not model:
@@ -279,12 +365,33 @@ class EnsemblePredictor:
             model_preds[name] = entry
             weighted_slices.append(probs * w)
             active_weights.append(w)
+            model_prob_arrays[name] = probs
+            model_weight_map[name] = w
 
         if not model_preds:
             return self._error_result("All model.predict calls failed.")
 
-        wsum = float(np.sum(active_weights))
-        ensemble_probs = np.sum(weighted_slices, axis=0) / wsum
+        # Hard rule for no-retrain stability:
+        # if ResNet50 and Custom CNN agree, ignore MobileNet for final blend.
+        forced_rule_used = False
+        forced_rule_prediction = None
+        if (
+            "resnet50" in model_preds
+            and "custom_cnn" in model_preds
+            and model_preds["resnet50"]["prediction"] == model_preds["custom_cnn"]["prediction"]
+        ):
+            forced_rule_used = True
+            forced_rule_prediction = model_preds["resnet50"]["prediction"]
+            pair_sum = float(model_weight_map["resnet50"] + model_weight_map["custom_cnn"])
+            ensemble_probs = (
+                model_prob_arrays["resnet50"] * model_weight_map["resnet50"]
+                + model_prob_arrays["custom_cnn"] * model_weight_map["custom_cnn"]
+            ) / pair_sum
+            wsum = pair_sum
+        else:
+            wsum = float(np.sum(active_weights))
+            ensemble_probs = np.sum(weighted_slices, axis=0) / wsum
+
         self._validate_softmax(ensemble_probs, "ensemble")
         ens_idx = int(np.argmax(ensemble_probs))
         blended_confidence_pct = float(ensemble_probs[ens_idx] * 100.0)
@@ -297,7 +404,9 @@ class EnsemblePredictor:
         vote_counts = Counter(vote_list)
         majority_class, majority_count = vote_counts.most_common(1)[0]
 
-        if majority_count >= min_agree and use_agreement:
+        if forced_rule_used:
+            prediction = forced_rule_prediction
+        elif majority_count >= min_agree and use_agreement:
             prediction = majority_class
         else:
             prediction = self.class_names[ens_idx]
@@ -373,6 +482,8 @@ class EnsemblePredictor:
                 "votes": vote_list,
                 "majority_class": majority_class,
                 "majority_count": majority_count,
+                "forced_rule_used": forced_rule_used,
+                "forced_rule_prediction": forced_rule_prediction,
                 "confidence_metric": conf_metric,
                 "confidence_source": confidence_source,
                 "support_for_final_class_per_model": dict(zip(model_preds.keys(), support_per_model)),
@@ -387,10 +498,10 @@ class EnsemblePredictor:
         return out
 
     def _error_result(self, message: str):
-        """Explicit failure state (no fake 'no tumor' at high confidence)."""
+        """Explicit failure state (no fake prediction when inference fails)."""
         z = {c: 0.0 for c in self.class_names}
         return {
-            "prediction": "notumor",
+            "prediction": "error",
             "confidence": 0.0,
             "ensemble_confidence": 0.0,
             "error": message,

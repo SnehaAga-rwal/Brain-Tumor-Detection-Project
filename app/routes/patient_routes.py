@@ -226,6 +226,13 @@ def process_scan_ai(scan_id):
             "debug": result.get("debug"),
         }
 
+        # Do not persist a fake diagnosis if inference failed (prevents false "No Tumor" records).
+        if result.get("error"):
+            current_app.logger.error(f"Inference failed for scan {scan_id}: {result.get('error')}")
+            scan.status = 'failed'
+            db.session.commit()
+            return
+
         # Create diagnosis record
         diagnosis = Diagnosis(
             scan_id=scan.id,

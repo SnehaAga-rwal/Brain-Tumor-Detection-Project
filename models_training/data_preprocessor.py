@@ -8,10 +8,11 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 from tqdm import tqdm
 import pickle
+from class_mapping import CANONICAL_CLASSES, resolve_class_dirs
 
 # Configuration
 IMG_SIZE = 224
-CLASSES = ['glioma', 'meningioma', 'notumor', 'pituitary']
+CLASSES = CANONICAL_CLASSES
 DATA_PATH = '../data/raw/'
 PROCESSED_PATH = '../data/processed/'
 
@@ -23,11 +24,11 @@ def load_data(data_split='Training'):
     split_path = os.path.join(DATA_PATH, data_split)
 
     print(f"Loading {data_split} data...")
+    resolved_dirs = resolve_class_dirs(split_path)
+    per_class_count = {c: 0 for c in CLASSES}
+
     for label, class_name in enumerate(CLASSES):
-        class_path = os.path.join(split_path, class_name)
-        if not os.path.exists(class_path):
-            print(f"Warning: Path {class_path} does not exist. Skipping.")
-            continue
+        class_path = resolved_dirs[class_name]
 
         for img_file in tqdm(os.listdir(class_path), desc=f'Loading {class_name}'):
             img_path = os.path.join(class_path, img_file)
@@ -45,10 +46,12 @@ def load_data(data_split='Training'):
 
                 images.append(img)
                 labels.append(label)
+                per_class_count[class_name] += 1
             except Exception as e:
                 print(f"Error loading {img_path}: {e}")
                 continue
 
+    print(f"{data_split} class distribution:", per_class_count)
     return np.array(images), np.array(labels)
 
 
