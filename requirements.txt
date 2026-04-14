@@ -27,6 +27,8 @@ gunicorn==23.0.0
 sqlalchemy==2.0.38
 alembic==1.15.1
 
+cryptography
+
 # Security
 bcrypt==4.2.1
 pyjwt==2.10.1
