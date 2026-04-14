@@ -58,6 +58,67 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     CORS(app)
 
+    # ============= DATABASE INIT (SAFE, MINIMAL) =============
+    # Ensure tables exist before any route-level queries run (e.g., when using `flask run`).
+    # Seeding is optional and only runs when the users table is empty.
+    with app.app_context():
+        # Import models so SQLAlchemy knows about all tables before create_all().
+        from app.database import models as _models  # noqa: F401
+
+        db.create_all()
+
+        if os.getenv("SEED_DEFAULT_USERS", "true").lower() == "true":
+            try:
+                from app.database.models import User, Patient, Doctor
+                from datetime import datetime
+
+                # Only seed if there are no users yet (prevents duplicates on restart).
+                if User.query.first() is None:
+                    admin = User(
+                        username="admin",
+                        email="admin@braintumor.com",
+                        role="admin",
+                        email_verified=True,
+                    )
+                    admin.set_password("Admin@123")
+                    db.session.add(admin)
+
+                    patient_user = User(
+                        username="patient",
+                        email="patient@braintumor.com",
+                        role="patient",
+                        email_verified=True,
+                    )
+                    patient_user.set_password("Patient@123")
+                    db.session.add(patient_user)
+                    db.session.flush()
+                    db.session.add(Patient(user_id=patient_user.id))
+
+                    doctor_user = User(
+                        username="doctor",
+                        email="doctor@braintumor.com",
+                        role="doctor",
+                        email_verified=True,
+                    )
+                    doctor_user.set_password("Doctor@123")
+                    db.session.add(doctor_user)
+                    db.session.flush()
+                    db.session.add(
+                        Doctor(
+                            user_id=doctor_user.id,
+                            specialization="Neuro-Oncology",
+                            license_number="DOC-0001",
+                            hospital_affiliation="City Hospital",
+                            verification_status=True,
+                            verification_date=datetime.utcnow(),
+                        )
+                    )
+
+                    db.session.commit()
+            except Exception:
+                # Never block app startup if seeding fails (tables are still created).
+                db.session.rollback()
+
     # ============= JINJA2 FILTERS =============
     @app.template_filter('fromjson')
     def fromjson_filter(value):
